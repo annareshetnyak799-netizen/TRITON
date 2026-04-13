@@ -1,0 +1,53 @@
+# Triton PyTorch backend config for GLiNER Guard encoder.
+#
+# This is the NATIVE PYTORCH backend — C++ TorchScript runtime,
+# no Python overhead. ~10-15% faster than Python backend for the encoder.
+#
+# Architecture: ModernBERT (mmBERT-small), hidden=384
+# Exported by: export/export_torchscript.py
+#
+# Usage: standalone (benchmark encoder only) or inside an ensemble
+#   with gliner_guard_preprocessor + gliner_guard_postprocessor.
+
+name: "gliner_guard_encoder"
+backend: "pytorch"
+max_batch_size: 64
+
+dynamic_batching {
+  preferred_batch_size: [ 1, 8, 16, 32, 64 ]
+  max_queue_delay_microseconds: 50000
+}
+
+# ─── Inputs ──────────────────────────────────────────────────────────────────
+# dim -1 = variable sequence length (Triton pads to max in batch)
+input [
+  {
+    name:      "input_ids"
+    data_type: TYPE_INT64
+    dims:      [ -1 ]
+  },
+  {
+    name:      "attention_mask"
+    data_type: TYPE_FP32
+    dims:      [ -1 ]
+  }
+]
+
+# ─── Output ──────────────────────────────────────────────────────────────────
+# last_hidden_state: [seq_len, hidden_size=384]
+output [
+  {
+    name:      "last_hidden_state"
+    data_type: TYPE_FP32
+    dims:      [ -1, 384 ]
+  }
+]
+
+# ─── Instance group ───────────────────────────────────────────────────────────
+# CPU for local debugging. Switch to KIND_GPU / count: 4 on A100.
+instance_group [
+  {
+    kind:  KIND_CPU
+    count: 1
+  }
+]

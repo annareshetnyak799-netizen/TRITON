@@ -1,0 +1,9 @@
+[submodule "TRITON/gliner-guard-serve"]
+	path = TRITON/gliner-guard-serve
+	url = https://github.com/bogdanminko/gliner-guard-serve.git
+[submodule "TRITON/repo_gliner2"]
+	path = TRITON/repo_gliner2
+	url = https://github.com/fastino-ai/GLiNER2.git
+[submodule "TRITON/repo_guardrails"]
+	path = TRITON/repo_guardrails
+	url = https://github.com/bogdanminko/guardrails-ai-sec-practice.git

@@ -1,0 +1,82 @@
+services:
+
+  # ─── NVIDIA Triton Inference Server ─────────────────────────────────────────
+  triton:
+    build:
+      context: ..                  # build context = TRITON/ root (needs repo_gliner2/)
+      dockerfile: triton-serve/Dockerfile
+    image: triton_gliner_guard:local
+    container_name: triton_gliner_guard
+    platform: linux/amd64          # Mac ARM (M1/M2/M3): run via Rosetta emulation
+    restart: unless-stopped
+
+    ports:
+      - "8000:8000"   # HTTP  — REST Inference Protocol v2
+      - "8001:8001"   # gRPC  — gRPC Inference Protocol v2
+      - "8002:8002"   # HTTP  — Prometheus metrics
+
+    volumes:
+      - ./model_repository:/models:ro
+      - hf_cache:/hf_cache          # persist HuggingFace model weights
+
+    environment:
+      HF_HOME: /hf_cache
+      TRANSFORMERS_CACHE: /hf_cache
+
+    command: >
+      tritonserver
+        --model-repository=/models
+        --log-verbose=1
+        --log-info=1
+        --log-warning=1
+        --log-error=1
+        --http-port=8000
+        --grpc-port=8001
+        --metrics-port=8002
+        --allow-metrics=true
+        --allow-gpu-metrics=false
+
+    # No GPU deploy section — CPU-only for local Mac debugging
+    # On GPU machine: uncomment the block below and set KIND_GPU in config.pbtxt
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v2/health/live"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 300s   # CPU: model load + warmup takes longer
+
+  # ─── Locust Load Tester ──────────────────────────────────────────────────────
+  # Run separately: docker compose --profile bench up locust
+  locust:
+    profiles: ["bench"]
+    image: locustio/locust:2.32.3
+    container_name: locust_gliner_guard
+    platform: linux/amd64
+    ports:
+      - "8089:8089"
+    volumes:
+      - ../gliner-guard-serve/test-script:/mnt/locust:ro
+    working_dir: /mnt/locust
+    environment:
+      GLINER_HOST: "http://triton:8000"
+    command: >
+      -f test-gliner.py
+      --host http://triton:8000
+      --headless
+      -u 10 -r 1
+      --run-time 5m
+      --csv /mnt/locust/triton-results
+    depends_on:
+      triton:
+        condition: service_healthy
+
+volumes:
+  hf_cache:

@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+*.egg-info/
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Env
+.env
+.envrc
+
+# Model weights — слишком большие для git (используй HuggingFace или hf_cache volume)
+*.pt
+*.safetensors
+*.bin
+*.onnx
+hf_cache/
+
+# Benchmark results — генерируются при прогоне
+*.html
+
+# OS
+.DS_Store

@@ -1,0 +1,60 @@
+# Triton config for GLiNER Guard — Python backend
+# LOCAL / CPU mode: KIND_CPU, count=1, no warmup
+# GPU mode: change KIND_CPU → KIND_GPU, count → 4, uncomment model_warmup
+
+name: "gliner_guard"
+backend: "python"
+
+# ─── Dynamic Batching ────────────────────────────────────────────────────────
+# Mirrors LitServe: max_batch_size=64, batch_timeout=0.05s (50 000 µs)
+max_batch_size: 64
+
+dynamic_batching {
+  preferred_batch_size: [ 1, 8, 16, 32, 64 ]
+  max_queue_delay_microseconds: 50000
+}
+
+# ─── I/O ─────────────────────────────────────────────────────────────────────
+input [
+  {
+    name:      "text"
+    data_type: TYPE_BYTES
+    dims:      [ 1 ]
+  }
+]
+
+output [
+  {
+    name:      "result"
+    data_type: TYPE_BYTES
+    dims:      [ 1 ]
+  }
+]
+
+# ─── Instance Group ───────────────────────────────────────────────────────────
+# CPU mode for local debugging.
+# Switch to KIND_GPU / count: 4 on A100.
+instance_group [
+  {
+    kind:  KIND_CPU
+    count: 1
+  }
+]
+
+# ─── Model Warmup ────────────────────────────────────────────────────────────
+# Disabled for CPU — warmup on CPU takes too long and blocks startup.
+# Uncomment on GPU:
+# model_warmup [
+#   {
+#     name:       "warmup_batch1"
+#     batch_size: 1
+#     inputs {
+#       key:   "text"
+#       value: {
+#         data_type: TYPE_BYTES
+#         dims:      [ 1 ]
+#         string_data: [ "Warmup text for GLiNER Guard model initialization." ]
+#       }
+#     }
+#   }
+# ]
