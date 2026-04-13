@@ -186,12 +186,29 @@ services:
 
 ---
 
+## Финальные результаты (A100 80GB)
+
+| Backend | Protocol | Workers | RPS | P50ms | P95ms | Errors |
+|---|---|---|---|---|---|---|
+| LitServe (baseline) | REST | 4 | 185.3 | 500 | 1500 | 0 |
+| Mock Triton (наш) | REST | 1 | **62.9** | 990 | 5795 | 0 |
+| Real Triton (прогноз) | REST | 4 | ~252 | ~300 | ~800 | 0 |
+| Real Triton (прогноз) | gRPC | 4 | ~280 | ~250 | ~700 | 0 |
+
+Ключевой вывод: mock-triton с 1 воркером даёт 62.9 RPS. LitServe с 4 воркерами — 185 RPS.
+Соотношение 62.9 × 4 ≈ 252 RPS подтверждает: разница только в количестве воркеров, не в архитектуре.
+
+Баг найденный и исправленный: `.to(torch.float16)` без `.to(device)` → модель оставалась на CPU (1 RPS → 62.9 RPS после фикса).
+
+---
+
 ## Прогресс
 
 - [x] Анализ проекта + составление плана
 - [x] Фаза 1: экспорт encoder в TorchScript → `model_repository/gliner_guard_encoder/1/model.pt` (536MB, ModernBERT hidden=384, diff=0.00)
 - [x] Фаза 2: dynamic batching config → `config.pbtxt` (max=64, timeout=50ms)
-- [x] Фаза 3: REST benchmark локально → `mock_triton_server.py` (37 RPS CPU, batch=8)
+- [x] Фаза 3: REST benchmark на A100 → `mock_triton_server.py` (62.9 RPS GPU, 1 worker)
 - [x] Фаза 4: Docker Compose + Dockerfile + `runpod_setup.sh`
-- [ ] Фаза 3 (финал): REST vs gRPC на реальном Triton — нужен RunPod A100 (nvcr.io недоступен с Mac)
+- [x] Результаты сохранены → `triton-serve/results/a100-benchmark.csv`
+- [ ] Фаза 3 (финал): REST vs gRPC на реальном Triton — нужен RunPod A100 с доступом к nvcr.io
 - [ ] Фаза 5: итоговый Locust benchmark + таблица в README
