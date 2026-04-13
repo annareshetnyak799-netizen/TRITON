@@ -139,8 +139,9 @@ async def lifespan(app: FastAPI):
     log.info("Loading GLiNER Guard model...")
     from gliner2 import GLiNER2
 
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     state.model = GLiNER2.from_pretrained("hivetrace/gliner-guard-uniencoder")
-    state.model.to(torch.float16 if torch.cuda.is_available() else torch.float32)
+    state.model.to(device).to(torch.float16 if device == "cuda" else torch.float32)
     state.model.eval()
 
     state.schema = (
@@ -148,7 +149,7 @@ async def lifespan(app: FastAPI):
         .entities(entity_types=PII_LABELS, threshold=0.4)
         .classification(task="safety", labels=SAFETY_LABELS)
     )
-    log.info("Model ready on %s", "cuda" if torch.cuda.is_available() else "cpu")
+    log.info("Model ready on %s", device)
 
     state.queue = asyncio.Queue()
     state.batcher_task = asyncio.create_task(dynamic_batcher())
