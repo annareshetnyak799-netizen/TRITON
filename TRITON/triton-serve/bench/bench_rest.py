@@ -118,7 +118,7 @@ async def run_bench(
                 print(f"  [ERROR] request {i}: {e}")
 
     limits = httpx.Limits(max_connections=concurrency, max_keepalive_connections=concurrency)
-    async with httpx.AsyncClient(timeout=60, limits=limits) as client:
+    async with httpx.AsyncClient(timeout=150, limits=limits) as client:
         # Warmup: 1 request
         print("Warming up...")
         await send_fn(client, TEXTS[0], url)

@@ -237,7 +237,7 @@ async def infer(model_name: str, request: Request):
 
     # Wait for batcher to process this request
     try:
-        result = await asyncio.wait_for(future, timeout=30.0)
+        result = await asyncio.wait_for(future, timeout=120.0)
     except asyncio.TimeoutError:
         raise HTTPException(status_code=504, detail="Inference timeout")
 
@@ -270,7 +270,7 @@ async def predict_litserve(request: Request):
     await state.queue.put({"text": text, "future": future})
 
     try:
-        result = await asyncio.wait_for(future, timeout=30.0)
+        result = await asyncio.wait_for(future, timeout=120.0)
     except asyncio.TimeoutError:
         raise HTTPException(status_code=504, detail="Inference timeout")
 
