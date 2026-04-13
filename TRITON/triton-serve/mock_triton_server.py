@@ -107,16 +107,20 @@ async def dynamic_batcher():
         t0 = time.perf_counter()
 
         try:
-            results = state.model.batch_extract(
-                texts=texts,
-                schemas=state.schema,
-                batch_size=len(texts),
+            # Run batch_extract in a thread pool so it doesn't block the
+            # asyncio event loop — batch_extract is CPU/GPU bound (synchronous)
+            loop = asyncio.get_event_loop()
+            results = await loop.run_in_executor(
+                None,
+                lambda: state.model.batch_extract(
+                    texts=texts,
+                    schemas=state.schema,
+                    batch_size=len(texts),
+                )
             )
             elapsed = (time.perf_counter() - t0) * 1000
             log.info("batch_extract done in %.0fms", elapsed)
 
-            # Batcher runs in the same asyncio event loop as the request handlers
-            # so we can call set_result() directly (no call_soon_threadsafe needed)
             for fut, result in zip(futures, results):
                 if not fut.done():
                     fut.set_result(result)
