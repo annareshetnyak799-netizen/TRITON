@@ -1,3 +1,4 @@
 backend,protocol,workers,rps,p50_ms,p95_ms,p99_ms,errors,note
-litserve,REST,4,185.3,500,1500,1700,0,Locust 100 users 15min A100
-mock-triton,REST,1,62.9,989.9,5795.0,6080.0,0,bench_rest.py 512req concurrency=128 A100
+litserve,REST,4,185.3,500,1500,1700,0,Locust 100 users 15min A100 via proxy
+mock-triton,REST,1,145.8,840,960,990,0,Locust 100 users 15min A100 via proxy
+mock-triton-projected,REST,4,~582,~250,~400,~450,0,прогноз 4 воркера (145.8x4)
