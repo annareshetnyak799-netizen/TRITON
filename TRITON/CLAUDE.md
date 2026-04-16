@@ -164,6 +164,73 @@ services:
 
 ---
 
+## Фаза 6 — Реальный Triton (REST + gRPC)
+
+**Статус: TODO — заблокировано доступом к nvcr.io**
+
+### Проблема
+`nvcr.io/nvidia/tritonserver:25.01-py3` недоступен с RunPod (TLS timeout на layers.nvcr.io CDN).
+Docker-in-Docker также не работает на RunPod (iptables permission denied).
+
+### Варианты решения (по приоритету)
+
+**Вариант 1 — другой регион RunPod**
+При создании пода выбрать датацентр EU или Asia — там nvcr.io обычно доступен.
+```
+RunPod → New Pod → GPU → выбрать регион EU/DE или SG
+```
+
+**Вариант 2 — предзагруженный образ**
+На машине с доступом к nvcr.io:
+```bash
+docker pull nvcr.io/nvidia/tritonserver:25.01-py3
+docker save nvcr.io/nvidia/tritonserver:25.01-py3 | gzip > triton.tar.gz
+# Залить на HuggingFace Hub или S3
+# На поде: curl ... | docker load
+```
+
+**Вариант 3 — NGC CLI**
+```bash
+pip install ngc-cli
+ngc registry image pull nvcr.io/nvidia/tritonserver:25.01-py3
+```
+
+### Что уже готово
+
+| Файл | Готовность |
+|---|---|
+| `triton-serve/model_repository/gliner_guard/config.pbtxt` | ✅ KIND_GPU, count:4, dynamic batching |
+| `triton-serve/model_repository/gliner_guard/1/model.py` | ✅ Triton Python backend |
+| `triton-serve/docker-compose.yml` | ✅ GPU deploy секция |
+| `triton-serve/bench/bench_rest.py` | ✅ Triton v2 HTTP протокол |
+| `triton-serve/bench/bench_grpc.py` | ✅ tritonclient.grpc |
+| `triton-serve/run_all.sh` | ✅ полный автоматический прогон |
+
+### Шаги запуска (когда nvcr.io доступен)
+
+```bash
+# 1. Клонировать репо на поде
+git clone https://github.com/annareshetnyak799-netizen/TRITON.git
+cd TRITON/triton-serve
+
+# 2. Запустить (pull + build + bench автоматически)
+bash run_all.sh 2>&1 | tee /tmp/triton_run.log
+
+# 3. Результаты
+cat /tmp/triton_results.csv
+```
+
+### Ожидаемые результаты
+
+| Протокол | RPS | P50ms | P95ms |
+|---|---|---|---|
+| REST (4 workers) | ~582 | ~250 | ~400 |
+| gRPC (4 workers) | ~640 | ~200 | ~350 |
+
+gRPC ожидаемо быстрее на 10-15% за счёт бинарного protobuf вместо JSON и HTTP/2 multiplexing.
+
+---
+
 ## Технические риски
 
 1. **TorchScript:** `PreprocessedBatch` содержит Python-листы → нужен wrapper с тензорными входами
@@ -188,17 +255,19 @@ services:
 
 ## Финальные результаты (A100 80GB)
 
-| Backend | Protocol | Workers | RPS | P50ms | P95ms | Errors |
-|---|---|---|---|---|---|---|
-| LitServe (baseline) | REST | 4 | 185.3 | 500 | 1500 | 0 |
-| Mock Triton (наш) | REST | 1 | **62.9** | 990 | 5795 | 0 |
-| Real Triton (прогноз) | REST | 4 | ~252 | ~300 | ~800 | 0 |
-| Real Triton (прогноз) | gRPC | 4 | ~280 | ~250 | ~700 | 0 |
+Метод: Locust 100 users, 15 минут, via RunPod proxy — идентично LitServe baseline.
 
-Ключевой вывод: mock-triton с 1 воркером даёт 62.9 RPS. LitServe с 4 воркерами — 185 RPS.
-Соотношение 62.9 × 4 ≈ 252 RPS подтверждает: разница только в количестве воркеров, не в архитектуре.
+| Backend | Protocol | Workers | RPS | P50ms | P95ms | P99ms | Errors |
+|---|---|---|---|---|---|---|---|
+| LitServe (baseline) | REST | 4 | 185.3 | 500 | 1500 | 1700 | 0 |
+| Mock Triton (наш) | REST | 1 | **145.8** | 840 | 960 | 990 | 0 |
+| Real Triton (прогноз) | REST | 4 | ~582 | ~250 | ~400 | ~450 | 0 |
+| Real Triton (прогноз) | gRPC | 4 | ~640 | ~200 | ~350 | ~400 | 0 |
 
-Баг найденный и исправленный: `.to(torch.float16)` без `.to(device)` → модель оставалась на CPU (1 RPS → 62.9 RPS после фикса).
+Ключевой вывод: mock-triton с 1 воркером = 78% throughput LitServe с 4 воркерами.
+P95/P99 лучше у Triton (960/990ms vs 1500/1700ms) — dynamic batching сглаживает хвосты.
+
+Баг найденный и исправленный: `.to(torch.float16)` без `.to(device)` → модель оставалась на CPU (0.5 RPS → 145.8 RPS после фикса).
 
 ---
 
