@@ -1,0 +1,42 @@
+# RunPod-specific Triton image.
+# Unlike Dockerfile (local dev), this one:
+#   - adds openssh-server so RunPod web terminal / SSH works
+#   - installs gliner2 from PyPI (no local submodule needed)
+#   - has a start.sh that clones model_repository from git and starts tritonserver
+#
+# Build & push (from repo root):
+#   docker build -f triton-serve/Dockerfile.runpod -t <dockerhub-user>/triton-gliner:latest .
+#   docker push <dockerhub-user>/triton-gliner:latest
+#
+# RunPod pod settings:
+#   Container image: <dockerhub-user>/triton-gliner:latest
+#   Expose ports: 22, 8000, 8001, 8002
+#   Container start command: (leave empty — CMD in image handles it)
+
+FROM nvcr.io/nvidia/tritonserver:25.01-py3
+
+WORKDIR /workspace
+
+# ── SSH for RunPod terminal access ────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        openssh-server \
+        git \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /run/sshd \
+    && echo "PermitRootLogin yes" >> /etc/ssh/sshd_config \
+    && echo "PasswordAuthentication no" >> /etc/ssh/sshd_config
+
+# ── Python deps ───────────────────────────────────────────────────────────────
+RUN pip install --no-cache-dir \
+        gliner \
+        gliner2 \
+        pydantic>=2.0.0 \
+        tritonclient[all]
+
+# ── Startup script ────────────────────────────────────────────────────────────
+COPY triton-serve/start_runpod.sh /start.sh
+RUN chmod +x /start.sh
+
+EXPOSE 22 8000 8001 8002
+
+CMD ["/start.sh"]
