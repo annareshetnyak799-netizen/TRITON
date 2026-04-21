@@ -27,7 +27,7 @@ else
     git -C "$REPO_DIR" pull origin "$BRANCH"
 fi
 
-MODEL_REPO="$REPO_DIR/triton-serve/model_repository"
+MODEL_REPO="$REPO_DIR/TRITON/triton-serve/model_repository"
 echo "[start.sh] Model repository: $MODEL_REPO"
 
 # Switch config to GPU mode
