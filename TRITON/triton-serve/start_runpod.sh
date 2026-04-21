@@ -41,6 +41,7 @@ tritonserver \
     --model-repository="$MODEL_REPO" \
     --model-control-mode=explicit \
     --load-model=gliner_guard \
+    --backend-config=python,python-runtime-path=/usr/local/bin/python3 \
     --http-port=8000 \
     --grpc-port=8001 \
     --metrics-port=8002 \
