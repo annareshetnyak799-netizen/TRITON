@@ -27,11 +27,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && echo "PasswordAuthentication no" >> /etc/ssh/sshd_config
 
 # ── Python deps ───────────────────────────────────────────────────────────────
-RUN pip install --no-cache-dir \
-        gliner \
-        gliner2 \
-        pydantic>=2.0.0 \
-        tritonclient[all]
+RUN pip install --no-cache-dir --timeout 300 --retries 5 requests
+RUN pip install --no-cache-dir --timeout 300 --retries 5 gliner
+RUN pip install --no-cache-dir --timeout 300 --retries 5 gliner2
+RUN pip install --no-cache-dir --timeout 300 --retries 5 "pydantic>=2.0.0"
+RUN pip install --no-cache-dir --timeout 300 --retries 5 "tritonclient[all]"
 
 # ── Startup script ────────────────────────────────────────────────────────────
 COPY triton-serve/start_runpod.sh /start.sh
