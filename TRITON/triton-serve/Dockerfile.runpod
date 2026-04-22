@@ -5,19 +5,14 @@
 #   - has a start.sh that clones model_repository from git and starts tritonserver
 #
 # Build & push (from repo root):
-#   docker build -f triton-serve/Dockerfile.runpod -t <dockerhub-user>/triton-gliner:latest .
-#   docker push <dockerhub-user>/triton-gliner:latest
-#
-# RunPod pod settings:
-#   Container image: <dockerhub-user>/triton-gliner:latest
-#   Expose ports: 22, 8000, 8001, 8002
-#   Container start command: (leave empty — CMD in image handles it)
+#   docker build --platform linux/amd64 -f triton-serve/Dockerfile.runpod -t <user>/triton-gliner:latest .
+#   docker push <user>/triton-gliner:latest
 
 FROM nvcr.io/nvidia/tritonserver:25.01-py3
 
 WORKDIR /workspace
 
-# ── SSH for RunPod terminal access ────────────────────────────────────────────
+# SSH for RunPod terminal access
 RUN apt-get update && apt-get install -y --no-install-recommends \
         openssh-server \
         git \
@@ -26,14 +21,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && echo "PermitRootLogin yes" >> /etc/ssh/sshd_config \
     && echo "PasswordAuthentication no" >> /etc/ssh/sshd_config
 
-# ── Python deps ───────────────────────────────────────────────────────────────
-RUN pip install --no-cache-dir --timeout 300 --retries 5 requests
-RUN pip install --no-cache-dir --timeout 300 --retries 5 gliner
-RUN pip install --no-cache-dir --timeout 300 --retries 5 gliner2
-RUN pip install --no-cache-dir --timeout 300 --retries 5 "pydantic>=2.0.0"
-RUN pip install --no-cache-dir --timeout 300 --retries 5 "tritonclient[all]"
+# Python deps.
+# Install gliner/gliner2 with --no-deps to avoid re-downloading torch+CUDA
+# (torch is already in the Triton base image).
+# Install their non-torch dependencies explicitly.
+RUN pip install --no-cache-dir --timeout 300 --retries 5 \
+    requests \
+    transformers \
+    huggingface_hub \
+    scipy \
+    "pydantic>=2.0.0" \
+    "tritonclient[all]"
 
-# ── Startup script ────────────────────────────────────────────────────────────
+RUN pip install --no-cache-dir --no-deps --timeout 300 --retries 5 gliner gliner2
+
+# Startup script
 COPY triton-serve/start_runpod.sh /start.sh
 RUN chmod +x /start.sh
 
