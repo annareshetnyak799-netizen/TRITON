@@ -1,0 +1,58 @@
+# Ensemble: gliner_preprocessor → gliner_guard_encoder → gliner_postprocessor
+#
+# Data flow:
+#   text ──► [preprocessor] ──► input_ids, attention_mask ──► [encoder] ──► last_hidden_state ──► [postprocessor] ──► result
+#                          ╰──► text_word_indices, meta ──────────────────────────────────────────► [postprocessor]
+#
+# The encoder is the native PyTorch backend (TorchScript model.pt).
+# Pre/postprocessing runs as Python backends.
+
+name: "gliner_ensemble"
+platform: "ensemble"
+
+max_batch_size: 64
+
+input [
+  {
+    name: "text"
+    data_type: TYPE_BYTES
+    dims: [ 1 ]
+  }
+]
+
+output [
+  {
+    name: "result"
+    data_type: TYPE_BYTES
+    dims: [ 1 ]
+  }
+]
+
+ensemble_scheduling {
+  step [
+    {
+      model_name: "gliner_preprocessor"
+      model_version: -1
+      input_map  { key: "text"               value: "INPUT_TEXT" }
+      output_map { key: "input_ids"          value: "PREP_INPUT_IDS" }
+      output_map { key: "attention_mask"     value: "PREP_ATTN_MASK" }
+      output_map { key: "text_word_indices"  value: "PREP_TWI" }
+      output_map { key: "meta"               value: "PREP_META" }
+    },
+    {
+      model_name: "gliner_guard_encoder"
+      model_version: -1
+      input_map  { key: "input_ids"          value: "PREP_INPUT_IDS" }
+      input_map  { key: "attention_mask"     value: "PREP_ATTN_MASK" }
+      output_map { key: "last_hidden_state"  value: "ENC_LHS" }
+    },
+    {
+      model_name: "gliner_postprocessor"
+      model_version: -1
+      input_map  { key: "last_hidden_state"  value: "ENC_LHS" }
+      input_map  { key: "text_word_indices"  value: "PREP_TWI" }
+      input_map  { key: "meta"               value: "PREP_META" }
+      output_map { key: "result"             value: "OUTPUT_RESULT" }
+    }
+  ]
+}

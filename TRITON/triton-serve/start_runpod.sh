@@ -53,12 +53,28 @@ python3 -c "import torch; print('torch', torch.__version__, 'at', torch.__file__
 python3 -c "from gliner2 import GLiNER2; print('gliner2 ok')" \
     || { echo "FATAL: gliner2 not importable"; exit 1; }
 
-# Start Triton (only load gliner_guard Python backend)
+# Generate TorchScript encoder (model.pt) if not already present.
+# export_torchscript.py downloads model from HuggingFace Hub (cached after first run).
+ENCODER_PT="$MODEL_REPO/gliner_guard_encoder/1/model.pt"
+if [ ! -f "$ENCODER_PT" ]; then
+    echo "[start.sh] Generating TorchScript encoder (first run, ~2 min)..."
+    python3 "$REPO_DIR/TRITON/triton-serve/export/export_torchscript.py"
+    echo "[start.sh] Encoder saved to $ENCODER_PT"
+else
+    echo "[start.sh] Encoder model.pt already exists, skipping export."
+fi
+
+# Start Triton: gliner_guard (Python backend, full pipeline)
+#              + gliner_ensemble (PyTorch encoder + Python pre/postprocessor)
 echo "[start.sh] Starting tritonserver..."
 tritonserver \
     --model-repository="$MODEL_REPO" \
     --model-control-mode=explicit \
     --load-model=gliner_guard \
+    --load-model=gliner_preprocessor \
+    --load-model=gliner_guard_encoder \
+    --load-model=gliner_postprocessor \
+    --load-model=gliner_ensemble \
     --backend-config=python,python-runtime-path="$PYTHON_RUNTIME" \
     --http-port=8000 \
     --grpc-port=8001 \

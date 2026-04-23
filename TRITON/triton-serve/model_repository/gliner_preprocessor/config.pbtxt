@@ -1,0 +1,51 @@
+name: "gliner_preprocessor"
+backend: "python"
+
+max_batch_size: 64
+
+dynamic_batching {
+  preferred_batch_size: [ 1, 8, 16, 32, 64 ]
+  max_queue_delay_microseconds: 50000
+}
+
+# Input: raw text strings
+input [
+  {
+    name: "text"
+    data_type: TYPE_BYTES
+    dims: [ 1 ]
+  }
+]
+
+# Outputs:
+#   input_ids / attention_mask  → gliner_guard_encoder
+#   text_word_indices / meta    → gliner_postprocessor (bypass encoder)
+output [
+  {
+    name: "input_ids"
+    data_type: TYPE_INT64
+    dims: [ -1 ]
+  },
+  {
+    name: "attention_mask"
+    data_type: TYPE_FP32
+    dims: [ -1 ]
+  },
+  {
+    name: "text_word_indices"
+    data_type: TYPE_INT64
+    dims: [ -1 ]
+  },
+  {
+    name: "meta"
+    data_type: TYPE_BYTES
+    dims: [ 1 ]
+  }
+]
+
+instance_group [
+  {
+    kind: KIND_CPU
+    count: 1
+  }
+]
