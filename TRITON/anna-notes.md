@@ -86,10 +86,23 @@
 - Протокол: gRPC, порт 8001 (TCP 213.173.102.4:12417)
 - Цель: сравнение REST vs gRPC при одинаковом backend
 
-**Результаты:**
-> TODO: заполнить после запуска bench_grpc.py
+**Результаты (bench_grpc.py vs bench_rest.py, одинаковые параметры: 512 req, concurrency=32):**
 
-**Ожидание:** gRPC быстрее REST на 10-20% за счёт Protobuf + HTTP/2 multiplexing.
+| Метрика | REST | gRPC |
+|---|---|---|
+| RPS | 34.6 | 132.8 |
+| P50 | 195ms | 200ms |
+| P95 | 467ms | 367ms |
+| P99 | 1022ms | 372ms |
+| Errors | 0 | 0 |
+
+**Анализ:**
+- P50 REST ≈ gRPC (195 vs 200ms) — время inference на сервере одинаковое, протокол не влияет
+- Разница в RPS — клиентский артефакт: bench_rest.py использует asyncio, которое создаёт bottleneck на Mac при concurrency=32 (ожидалось ~160 RPS при P50=195ms, получили 34)
+- gRPC выигрывает по P99 (372 vs 1022ms) — HTTP/2 мультиплексирование убирает head-of-line blocking
+- Надёжный REST RPS из Locust: **147 RPS** — для gRPC аналогичный Locust тест не проводился
+
+**Вывод:** для inference-heavy задач (модель занимает ~200ms) REST ≈ gRPC по latency. gRPC преимущество проявляется на хвостах (P99) и при очень высокой конкурентности.
 
 ---
 
