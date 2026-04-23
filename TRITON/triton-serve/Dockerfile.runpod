@@ -21,24 +21,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && echo "PermitRootLogin yes" >> /etc/ssh/sshd_config \
     && echo "PasswordAuthentication no" >> /etc/ssh/sshd_config
 
-# Python deps.
-# --no-deps для gliner/gliner2: torch уже есть в базовом образе Triton.
-# Явно устанавливаем только non-torch зависимости.
+# Базовый образ Triton содержит libtorch (C++) для своего PyTorch backend,
+# но НЕ устанавливает Python-пакет torch в системный Python.
+# cu121 совместим с CUDA 12.3 (CUDA backward compatible внутри major версии).
+RUN python3 -m pip install --no-cache-dir --timeout 600 --retries 5 \
+    "torch==2.5.1" \
+    --index-url https://download.pytorch.org/whl/cu121
+
+# Остальные зависимости (не torch)
 RUN python3 -m pip install --no-cache-dir --timeout 300 --retries 5 \
-    requests \
     transformers \
     huggingface_hub \
     scipy \
     "pydantic>=2.0.0" \
     "tritonclient[all]"
 
+# gliner/gliner2 — без зависимостей (torch уже выше)
 RUN python3 -m pip install --no-cache-dir --no-deps --timeout 300 --retries 5 gliner gliner2
 
-# Проверяем импорты и записываем точный путь к site-packages в файл.
-# model.py читает /python_site_packages.txt при старте — никакого угадывания путей.
+# Проверяем импорты и записываем точный путь к site-packages.
+# model.py читает /python_site_packages.txt при старте — без угадывания путей.
 RUN python3 -c "import torch; print('torch', torch.__version__, 'at', torch.__file__)"
 RUN python3 -c "from gliner2 import GLiNER2; print('gliner2 ok')"
-RUN python3 -c "import site, json, sys; p=site.getsitepackages(); print('site-packages:', p); print('Python:', sys.executable); open('/python_site_packages.txt','w').write(json.dumps(p))"
+RUN python3 -c "import site, json, sys; p=site.getsitepackages(); print('Python:', sys.executable); print('site-packages:', p); open('/python_site_packages.txt','w').write(json.dumps(p))"
 
 # Startup script
 COPY triton-serve/start_runpod.sh /start.sh
