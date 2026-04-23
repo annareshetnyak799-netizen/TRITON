@@ -25,7 +25,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install gliner/gliner2 with --no-deps to avoid re-downloading torch+CUDA
 # (torch is already in the Triton base image).
 # Install their non-torch dependencies explicitly.
-RUN pip install --no-cache-dir --timeout 300 --retries 5 \
+# Use `python3 -m pip` to ensure we install into the same Python the Triton
+# backend stub will use (NGC images ship conda Python at /opt/conda/bin/python3).
+RUN python3 -m pip install --no-cache-dir --timeout 300 --retries 5 \
     requests \
     transformers \
     huggingface_hub \
@@ -33,7 +35,11 @@ RUN pip install --no-cache-dir --timeout 300 --retries 5 \
     "pydantic>=2.0.0" \
     "tritonclient[all]"
 
-RUN pip install --no-cache-dir --no-deps --timeout 300 --retries 5 gliner gliner2
+RUN python3 -m pip install --no-cache-dir --no-deps --timeout 300 --retries 5 gliner gliner2
+
+# Verify key imports work before baking the image
+RUN python3 -c "import torch; print('torch', torch.__version__)"
+RUN python3 -c "from gliner2 import GLiNER2; print('gliner2 ok')"
 
 # Startup script
 COPY triton-serve/start_runpod.sh /start.sh

@@ -16,11 +16,21 @@ Triton Python backend contract:
 
 import sys
 import glob
-# Triton Python backend stub uses isolated env — add all system dist-packages
-# (torch may be in python3.10, gliner2 in python3.12 — add both)
-for _p in sorted(glob.glob('/usr/local/lib/python3.*/dist-packages'), reverse=True):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+
+# NGC Triton images use conda Python — packages land in /opt/conda/lib/python3.*/site-packages.
+# Ubuntu system Python uses /usr/local/lib/python3.*/dist-packages.
+# Add both so the stub subprocess can find torch, gliner2, etc. regardless of image layout.
+_search_patterns = [
+    '/opt/conda/lib/python3.*/site-packages',
+    '/opt/conda/lib/python3.*/dist-packages',
+    '/usr/local/lib/python3.*/site-packages',
+    '/usr/local/lib/python3.*/dist-packages',
+    '/usr/lib/python3/dist-packages',
+]
+for _pat in _search_patterns:
+    for _p in sorted(glob.glob(_pat), reverse=True):
+        if _p not in sys.path:
+            sys.path.insert(0, _p)
 
 import json
 import logging
