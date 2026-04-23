@@ -30,10 +30,12 @@ fi
 MODEL_REPO="$REPO_DIR/TRITON/triton-serve/model_repository"
 echo "[start.sh] Model repository: $MODEL_REPO"
 
-# Switch config to GPU mode
+# Switch configs to GPU mode
 sed -i 's/KIND_CPU/KIND_GPU/g'  "$MODEL_REPO/gliner_guard/config.pbtxt"
 sed -i 's/count: 1/count: 4/g' "$MODEL_REPO/gliner_guard/config.pbtxt"
-echo "[start.sh] Config switched to GPU (count: 4)"
+# Encoder (PyTorch backend): must run on GPU for libtorch to load model.pt onto CUDA
+sed -i 's/KIND_CPU/KIND_GPU/g'  "$MODEL_REPO/gliner_guard_encoder/config.pbtxt"
+echo "[start.sh] Configs switched to GPU (gliner_guard: count=4, gliner_guard_encoder: count=1)"
 
 # Используем тот же Python, что использовал pip во время сборки образа.
 # sys.executable возвращает абсолютный путь к текущему интерпретатору — без угадывания.
