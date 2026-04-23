@@ -15,11 +15,8 @@ Triton Python backend contract:
 """
 
 import sys
-import site
-# Expose system pip packages to Triton Python backend isolated environment
-for path in site.getsitepackages():
-    if path not in sys.path:
-        sys.path.insert(0, path)
+# Triton Python backend stub uses isolated env — explicitly add system packages
+sys.path.insert(0, '/usr/local/lib/python3.12/dist-packages')
 
 import json
 import logging
