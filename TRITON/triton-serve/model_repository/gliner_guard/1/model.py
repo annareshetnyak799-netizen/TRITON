@@ -15,8 +15,12 @@ Triton Python backend contract:
 """
 
 import sys
-# Triton Python backend stub uses isolated env — explicitly add system packages
-sys.path.insert(0, '/usr/local/lib/python3.12/dist-packages')
+import glob
+# Triton Python backend stub uses isolated env — add all system dist-packages
+# (torch may be in python3.10, gliner2 in python3.12 — add both)
+for _p in sorted(glob.glob('/usr/local/lib/python3.*/dist-packages'), reverse=True):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 import json
 import logging
