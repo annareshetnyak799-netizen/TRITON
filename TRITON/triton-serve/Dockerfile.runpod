@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # RunPod-specific Triton image.
 # Unlike Dockerfile (local dev), this one:
 #   - adds openssh-server so RunPod web terminal / SSH works
@@ -23,13 +24,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Базовый образ Triton содержит libtorch (C++) для своего PyTorch backend,
 # но НЕ устанавливает Python-пакет torch в системный Python.
+# Без пина версии — pip берёт хэш и файл из одного индекса, что исключает mismatch.
+# --mount=type=cache: BuildKit кэширует .whl между запусками, ретрай не качает заново.
 # cu121 совместим с CUDA 12.3 (CUDA backward compatible внутри major версии).
-RUN python3 -m pip install --no-cache-dir --timeout 600 --retries 5 \
-    "torch==2.5.1" \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 -m pip install --timeout 1200 --retries 10 \
+    torch \
     --index-url https://download.pytorch.org/whl/cu121
 
-# Зависимости gliner/gliner2 (без torch — он уже установлен выше)
-RUN python3 -m pip install --no-cache-dir --timeout 300 --retries 5 \
+# Зависимости gliner/gliner2 (torch уже выше)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 -m pip install --timeout 300 --retries 5 \
     transformers \
     huggingface_hub \
     scipy \
@@ -38,7 +43,8 @@ RUN python3 -m pip install --no-cache-dir --timeout 300 --retries 5 \
     onnxruntime-gpu
 
 # gliner/gliner2 — без зависимостей (все deps выше)
-RUN python3 -m pip install --no-cache-dir --no-deps --timeout 300 --retries 5 gliner gliner2
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 -m pip install --no-deps --timeout 300 --retries 5 gliner gliner2
 
 # Проверяем импорты и записываем точный путь к site-packages.
 # model.py читает /python_site_packages.txt при старте — без угадывания путей.
