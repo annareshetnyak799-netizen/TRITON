@@ -28,15 +28,16 @@ RUN python3 -m pip install --no-cache-dir --timeout 600 --retries 5 \
     "torch==2.5.1" \
     --index-url https://download.pytorch.org/whl/cu121
 
-# Остальные зависимости (не torch)
+# Зависимости gliner/gliner2 (без torch — он уже установлен выше)
 RUN python3 -m pip install --no-cache-dir --timeout 300 --retries 5 \
     transformers \
     huggingface_hub \
     scipy \
     "pydantic>=2.0.0" \
-    "tritonclient[all]"
+    "tritonclient[all]" \
+    onnxruntime-gpu
 
-# gliner/gliner2 — без зависимостей (torch уже выше)
+# gliner/gliner2 — без зависимостей (все deps выше)
 RUN python3 -m pip install --no-cache-dir --no-deps --timeout 300 --retries 5 gliner gliner2
 
 # Проверяем импорты и записываем точный путь к site-packages.
