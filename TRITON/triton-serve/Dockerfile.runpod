@@ -22,11 +22,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && echo "PasswordAuthentication no" >> /etc/ssh/sshd_config
 
 # Python deps.
-# Install gliner/gliner2 with --no-deps to avoid re-downloading torch+CUDA
-# (torch is already in the Triton base image).
-# Install their non-torch dependencies explicitly.
-# Use `python3 -m pip` to ensure we install into the same Python the Triton
-# backend stub will use (NGC images ship conda Python at /opt/conda/bin/python3).
+# --no-deps для gliner/gliner2: torch уже есть в базовом образе Triton.
+# Явно устанавливаем только non-torch зависимости.
 RUN python3 -m pip install --no-cache-dir --timeout 300 --retries 5 \
     requests \
     transformers \
@@ -37,9 +34,11 @@ RUN python3 -m pip install --no-cache-dir --timeout 300 --retries 5 \
 
 RUN python3 -m pip install --no-cache-dir --no-deps --timeout 300 --retries 5 gliner gliner2
 
-# Verify key imports work before baking the image
-RUN python3 -c "import torch; print('torch', torch.__version__)"
+# Проверяем импорты и записываем точный путь к site-packages в файл.
+# model.py читает /python_site_packages.txt при старте — никакого угадывания путей.
+RUN python3 -c "import torch; print('torch', torch.__version__, 'at', torch.__file__)"
 RUN python3 -c "from gliner2 import GLiNER2; print('gliner2 ok')"
+RUN python3 -c "import site, json, sys; p=site.getsitepackages(); print('site-packages:', p); print('Python:', sys.executable); open('/python_site_packages.txt','w').write(json.dumps(p))"
 
 # Startup script
 COPY triton-serve/start_runpod.sh /start.sh

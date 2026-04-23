@@ -35,25 +35,23 @@ sed -i 's/KIND_CPU/KIND_GPU/g'  "$MODEL_REPO/gliner_guard/config.pbtxt"
 sed -i 's/count: 1/count: 4/g' "$MODEL_REPO/gliner_guard/config.pbtxt"
 echo "[start.sh] Config switched to GPU (count: 4)"
 
-# Detect Python runtime — NGC Triton images use /opt/conda/bin/python3
-if [ -f /opt/conda/bin/python3 ]; then
-    PYTHON_RUNTIME=/opt/conda/bin/python3
-    SITE_PKG=$(/opt/conda/bin/python3 -c "import site; print(':'.join(site.getsitepackages()))")
-else
-    PYTHON_RUNTIME=/usr/local/bin/python3
-    SITE_PKG=$(/usr/local/bin/python3 -c "import site; print(':'.join(site.getsitepackages()))")
-fi
-echo "[start.sh] Python runtime: $PYTHON_RUNTIME"
-echo "[start.sh] Site packages: $SITE_PKG"
+# Используем тот же Python, что использовал pip во время сборки образа.
+# sys.executable возвращает абсолютный путь к текущему интерпретатору — без угадывания.
+PYTHON_RUNTIME=$(python3 -c "import sys; print(sys.executable)")
+SITE_PKG=$(python3 -c "import site; print(':'.join(site.getsitepackages()))")
+echo "[start.sh] Python runtime : $PYTHON_RUNTIME"
+echo "[start.sh] Site packages  : $SITE_PKG"
 
-# Expose site-packages to the backend stub subprocess
+# Передаём site-packages дочернему subprocess stub-а через PYTHONPATH
 export PYTHONPATH="${SITE_PKG}${PYTHONPATH:+:$PYTHONPATH}"
 echo "[start.sh] PYTHONPATH=$PYTHONPATH"
 
-# Verify key imports before starting Triton
+# Проверяем импорты до запуска Triton — быстрый fail с понятным сообщением
 echo "[start.sh] Verifying imports..."
-$PYTHON_RUNTIME -c "import torch; print('torch', torch.__version__)" || { echo "FATAL: torch not importable"; exit 1; }
-$PYTHON_RUNTIME -c "from gliner2 import GLiNER2; print('gliner2 ok')" || { echo "FATAL: gliner2 not importable"; exit 1; }
+python3 -c "import torch; print('torch', torch.__version__, 'at', torch.__file__)" \
+    || { echo "FATAL: torch not importable via $PYTHON_RUNTIME"; exit 1; }
+python3 -c "from gliner2 import GLiNER2; print('gliner2 ok')" \
+    || { echo "FATAL: gliner2 not importable"; exit 1; }
 
 # Start Triton (only load gliner_guard Python backend)
 echo "[start.sh] Starting tritonserver..."
