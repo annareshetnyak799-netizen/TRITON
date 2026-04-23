@@ -3,4 +3,4 @@ litserve,REST,4,185.3,500,1500,1700,0,Locust 100 users 15min A100 via proxy
 mock-triton,REST,1,145.8,840,960,990,0,Locust 100 users 15min A100 via proxy
 triton-python,REST,4,80.6,910.2,4770.4,5637.4,0,bench_rest.py 512req concurrency=128 A100 (invalid: overloaded)
 triton-python,gRPC,4,213.2,136.7,267.2,298.2,0,bench_grpc.py 512req concurrency=32 A100 (invalid: wrong methodology)
-triton-python,REST,4,146.5,600,1200,1900,0,Locust 100 users 15min A100 local Mac client (final clean run)
+triton-python,REST,4,146.8,600,1200,1900,0,Locust 100 users 15min A100 local Mac client
