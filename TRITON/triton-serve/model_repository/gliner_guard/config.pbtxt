@@ -8,6 +8,8 @@ dynamic_batching {
   max_queue_delay_microseconds: 50000
 }
 
+# data_type: 13 = TYPE_BYTES (numeric form).
+# Triton 25.01 libprotobuf rejects the string "TYPE_BYTES" in this field.
 input [
   {
     name: "text"

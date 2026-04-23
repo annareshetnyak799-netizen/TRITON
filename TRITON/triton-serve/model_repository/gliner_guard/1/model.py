@@ -64,7 +64,8 @@ class TritonPythonModel:
 
         # Load model — same as LitServe baseline
         self.model = GLiNER2.from_pretrained(MODEL_ID)
-        self.model.to(device).to(torch.float16)
+        dtype = torch.float16 if device == "cuda" else torch.float32
+        self.model.to(device=device, dtype=dtype)
         self.model.eval()
 
         # Build schema once — same labels as LitServe baseline

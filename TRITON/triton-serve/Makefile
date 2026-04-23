@@ -2,7 +2,7 @@
 # Usage: make <target>
 
 .PHONY: help start stop logs bench-rest bench-grpc bench-all bench-locust \
-        smoke health check-model
+        smoke health check-model push-dockerhub push-ghcr
 
 TRITON_REST  := http://localhost:8000
 TRITON_GRPC  := localhost:8001
@@ -10,13 +10,29 @@ MODEL        := gliner_guard
 NUM_REQUESTS := 128
 CONCURRENCY  := 128
 
+# Docker image names
+DOCKERHUB_IMAGE := annaresh2024/triton-gliner:latest
+# GitHub Container Registry — используй если Docker Hub недоступен на RunPod
+GHCR_IMAGE      := ghcr.io/annareshetnyak799-netizen/triton-gliner:latest
+
 help:          ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*##"}{printf "  %-20s %s\n",$$1,$$2}'
 
-# ─── Build ───────────────────────────────────────────────────────────────────
+# ─── Build & Push ────────────────────────────────────────────────────────────
 
 build:         ## Build custom Triton image with gliner2 deps (~5-10 min first time)
 	docker compose build triton
+
+push-dockerhub: ## Push image to Docker Hub (docker login required)
+	docker build --platform linux/amd64 -f Dockerfile.runpod -t $(DOCKERHUB_IMAGE) ..
+	docker push $(DOCKERHUB_IMAGE)
+
+push-ghcr:     ## Push image to GitHub Container Registry (используй если Docker Hub недоступен)
+	docker build --platform linux/amd64 -f Dockerfile.runpod -t $(GHCR_IMAGE) ..
+	docker push $(GHCR_IMAGE)
+	@echo ""
+	@echo "В RunPod Container Image укажи: $(GHCR_IMAGE)"
+	@echo "Если репо приватное — добавь токен: Settings → Secrets → GHCR_TOKEN"
 
 # ─── Server lifecycle ─────────────────────────────────────────────────────────
 

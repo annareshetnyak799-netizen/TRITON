@@ -109,7 +109,7 @@ async def dynamic_batcher():
         try:
             # Run batch_extract in a thread pool so it doesn't block the
             # asyncio event loop — batch_extract is CPU/GPU bound (synchronous)
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             results = await loop.run_in_executor(
                 None,
                 lambda: state.model.batch_extract(
@@ -232,7 +232,7 @@ async def infer(model_name: str, request: Request):
         raise HTTPException(status_code=400, detail=f"Bad input: {e}")
 
     # Enqueue for dynamic batching
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     future: asyncio.Future = loop.create_future()
     await state.queue.put({"text": text, "future": future})
 
@@ -266,7 +266,7 @@ async def predict_litserve(request: Request):
     body = await request.json()
     text = body.get("text", "")
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     future: asyncio.Future = loop.create_future()
     await state.queue.put({"text": text, "future": future})
 

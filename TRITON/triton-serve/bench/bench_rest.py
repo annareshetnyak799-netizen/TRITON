@@ -119,9 +119,11 @@ async def run_bench(
 
     limits = httpx.Limits(max_connections=concurrency, max_keepalive_connections=concurrency)
     async with httpx.AsyncClient(timeout=150, limits=limits) as client:
-        # Warmup: 1 request
         print("Warming up...")
-        await send_fn(client, TEXTS[0], url)
+        try:
+            await send_fn(client, TEXTS[0], url)
+        except Exception as e:
+            raise SystemExit(f"Server not reachable at {url}: {e}")
 
         print(f"Running {num_requests} requests (concurrency={concurrency})...")
         tasks = [bounded_send(i) for i in range(num_requests)]
