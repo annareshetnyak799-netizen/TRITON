@@ -4,4 +4,5 @@ mock-triton,REST,1,145.8,840,960,990,0,Locust 100 users 15min A100 via proxy
 triton-python,REST,4,80.6,910.2,4770.4,5637.4,0,bench_rest.py 512req concurrency=128 A100 (invalid: overloaded)
 triton-python,REST,4,34.6,195.1,467.2,1022.0,0,bench_rest.py 512req concurrency=32 A100 (client-limited: asyncio bottleneck on Mac)
 triton-python,gRPC,4,132.8,200.2,367.4,372.3,0,bench_grpc.py 512req concurrency=32 A100
+triton-python,gRPC,4,149.1,600,1100,1500,0,Locust 100 users 15min A100 local Mac client
 triton-python,REST,4,146.8,600,1200,1900,0,Locust 100 users 15min A100 local Mac client

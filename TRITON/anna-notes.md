@@ -86,23 +86,33 @@
 - Протокол: gRPC, порт 8001 (TCP 213.173.102.4:12417)
 - Цель: сравнение REST vs gRPC при одинаковом backend
 
-**Результаты (bench_grpc.py vs bench_rest.py, одинаковые параметры: 512 req, concurrency=32):**
+**Результаты — Locust 100 users, 15 min (честное сравнение с REST):**
 
-| Метрика | REST | gRPC |
-|---|---|---|
-| RPS | 34.6 | 132.8 |
-| P50 | 195ms | 200ms |
-| P95 | 467ms | 367ms |
-| P99 | 1022ms | 372ms |
-| Errors | 0 | 0 |
+| Метрика | REST | gRPC | Δ |
+|---|---|---|---|
+| RPS | 146.8 | **149.1** | +1.5% |
+| P50 | 600ms | **600ms** | = |
+| P95 | 1200ms | **1100ms** | -8% ✅ |
+| P99 | 1900ms | **1500ms** | -21% ✅ |
+| Errors | 0 | 0 | = |
+
+**Micro-benchmark (bench_grpc.py vs bench_rest.py, 512 req concurrency=32):**
+- REST: 34.6 RPS / P50=195ms (клиентский артефакт: asyncio bottleneck на Mac)
+- gRPC: 132.8 RPS / P50=200ms (threading, корректно)
 
 **Анализ:**
-- P50 REST ≈ gRPC (195 vs 200ms) — время inference на сервере одинаковое, протокол не влияет
-- Разница в RPS — клиентский артефакт: bench_rest.py использует asyncio, которое создаёт bottleneck на Mac при concurrency=32 (ожидалось ~160 RPS при P50=195ms, получили 34)
-- gRPC выигрывает по P99 (372 vs 1022ms) — HTTP/2 мультиплексирование убирает head-of-line blocking
-- Надёжный REST RPS из Locust: **147 RPS** — для gRPC аналогичный Locust тест не проводился
+- Throughput: REST ≈ gRPC — сервер является узким местом, не протокол
+- P50 одинаковый: inference time (~200ms) доминирует над protocol overhead
+- gRPC выигрывает на хвостах (P99 -21%): HTTP/2 мультиплексирование убирает head-of-line blocking
+- Ошибок нет ни в одном протоколе
 
-**Вывод:** для inference-heavy задач (модель занимает ~200ms) REST ≈ gRPC по latency. gRPC преимущество проявляется на хвостах (P99) и при очень высокой конкурентности.
+**Технические проблемы при настройке Locust gRPC:**
+- gRPC использует C-level networking — несовместим с gevent monkey-patching
+- Решение: `get_hub().threadpool.apply()` — запуск в реальном OS потоке
+- По умолчанию threadpool.maxsize=10 → при 100 users создаёт очередь → P50=1900ms
+- Финальное решение: `pool.maxsize = pool.size = 200` в `@events.init`
+
+**Вывод:** для inference-heavy задач REST ≈ gRPC по throughput, gRPC лучше по tail latency.
 
 ---
 
