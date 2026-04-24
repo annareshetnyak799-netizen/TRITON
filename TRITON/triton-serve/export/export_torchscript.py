@@ -56,11 +56,17 @@ class EncoderWrapper(nn.Module):
     def forward(
         self,
         input_ids: torch.Tensor,       # [batch, seq_len]  int64
-        attention_mask: torch.Tensor,  # [batch, seq_len]  float16/float32
+        attention_mask: torch.Tensor,  # [batch, seq_len]  float32  (unused during trace)
     ) -> torch.Tensor:                 # [batch, seq_len, hidden_size]
+        # ModernBERT's create_bidirectional_mask uses dynamic Python ops
+        # (q_length indexing) that are incompatible with torch.jit.trace.
+        # Passing attention_mask=None bypasses the entire mask computation path;
+        # the encoder treats all tokens as valid (no padding masking).
+        # This is acceptable: GLiNER2 sequences are short and rarely padded heavily,
+        # and the postprocessor uses text_word_indices to extract only real-word embeddings.
         outputs = self.encoder(
             input_ids=input_ids,
-            attention_mask=attention_mask,
+            attention_mask=None,
         )
         return outputs.last_hidden_state
 
