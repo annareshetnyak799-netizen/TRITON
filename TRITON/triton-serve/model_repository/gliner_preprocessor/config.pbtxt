@@ -12,7 +12,7 @@ dynamic_batching {
 input [
   {
     name: "text"
-    data_type: TYPE_BYTES
+    data_type: 13
     dims: [ 1 ]
   }
 ]
@@ -38,7 +38,7 @@ output [
   },
   {
     name: "meta"
-    data_type: TYPE_BYTES
+    data_type: 13
     dims: [ 1 ]
   }
 ]

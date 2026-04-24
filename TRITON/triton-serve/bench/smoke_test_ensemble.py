@@ -43,7 +43,7 @@ def post(host: str, path: str, payload: dict) -> dict:
         return {"error": str(e)}
 
 
-MODELS = ["gliner_guard", "gliner_preprocessor", "gliner_guard_encoder",
+MODELS = ["gliner_guard", "gliner_preprocessor", "gliner_guard_encoder_onnx",
           "gliner_postprocessor", "gliner_ensemble"]
 
 TEXTS = [

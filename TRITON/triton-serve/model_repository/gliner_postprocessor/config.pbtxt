@@ -25,7 +25,7 @@ input [
   },
   {
     name: "meta"
-    data_type: TYPE_BYTES
+    data_type: 13
     dims: [ 1 ]
   }
 ]
@@ -33,7 +33,7 @@ input [
 output [
   {
     name: "result"
-    data_type: TYPE_BYTES
+    data_type: 13
     dims: [ 1 ]
   }
 ]

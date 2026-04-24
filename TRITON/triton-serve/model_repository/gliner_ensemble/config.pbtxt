@@ -15,7 +15,7 @@ max_batch_size: 64
 input [
   {
     name: "text"
-    data_type: TYPE_BYTES
+    data_type: 13
     dims: [ 1 ]
   }
 ]
@@ -23,7 +23,7 @@ input [
 output [
   {
     name: "result"
-    data_type: TYPE_BYTES
+    data_type: 13
     dims: [ 1 ]
   }
 ]
@@ -33,7 +33,7 @@ ensemble_scheduling {
     {
       model_name: "gliner_preprocessor"
       model_version: -1
-      input_map  { key: "text"               value: "INPUT_TEXT" }
+      input_map  { key: "text"               value: "text" }
       output_map { key: "input_ids"          value: "PREP_INPUT_IDS" }
       output_map { key: "attention_mask"     value: "PREP_ATTN_MASK" }
       output_map { key: "text_word_indices"  value: "PREP_TWI" }
@@ -52,7 +52,7 @@ ensemble_scheduling {
       input_map  { key: "last_hidden_state"  value: "ENC_LHS" }
       input_map  { key: "text_word_indices"  value: "PREP_TWI" }
       input_map  { key: "meta"               value: "PREP_META" }
-      output_map { key: "result"             value: "OUTPUT_RESULT" }
+      output_map { key: "result"             value: "result" }
     }
   ]
 }
