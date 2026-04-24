@@ -59,7 +59,7 @@ _FIXED_METADATA = {
     "entity_metadata": {},
     "relation_metadata": {},
     "field_orders": {},
-    "entity_order": [],
+    # entity_order intentionally absent: _extract_entities falls back to entity_names from schema
     "relation_order": [],
     "classification_tasks": ["safety"],
 }
@@ -187,7 +187,7 @@ class TritonPythonModel:
                             schema=batch.original_schemas[i],
                             start_mapping=batch.start_mappings[i],
                             end_mapping=batch.end_mappings[i],
-                            threshold=0.5,
+                            threshold=PII_THRESHOLD,
                             metadata=metadata_list[i],
                             include_confidence=False,
                             include_spans=False,
