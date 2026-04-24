@@ -116,23 +116,47 @@
 
 ---
 
-## Эксперимент 3 — Ensemble (нативный PyTorch backend)
+## Эксперимент 3 — Ensemble (нативный backend)
 
-**Дата:** планируется после rebuild образа
+**Дата:** 24 апреля 2026
 
 **Архитектура:**
 ```
 text → [gliner_preprocessor] (Python, CPU)
-     → input_ids, attention_mask → [gliner_guard_encoder] (PyTorch, model.pt, GPU)
+     → input_ids, attention_mask → [gliner_guard_encoder_onnx] (ONNX Runtime, GPU)
      → last_hidden_state → [gliner_postprocessor] (Python, GPU)
-     → meta (bypass encoder) ──────────────────────► [gliner_postprocessor]
+     → meta (bypass encoder) ─────────────────────────────────► [gliner_postprocessor]
      → result
 ```
 
-**Ключевое отличие от экспериментов 1-2:**
-- Encoder запускается как **нативный TorchScript в C++ libtorch** (не через Python)
-- model.pt генерируется при первом старте через `export_torchscript.py`
-- Preprocessor/Postprocessor остаются Python backend (preprocessing нельзя TorchScript-ировать из-за Python-списков в PreprocessedBatch)
+### Почему не TorchScript (изначальный план)
+
+Планировалось использовать Triton **PyTorch backend** с `model.pt` (TorchScript, C++ libtorch).
+Экспорт через `torch.jit.trace` падал с `IndexError: tuple index out of range` внутри
+`transformers/masking_utils.py:sdpa_mask`.
+
+**Корневая причина:** ModernBERT всегда вызывает `create_bidirectional_mask()` в своём
+`forward()`, независимо от переданного `attention_mask`. Внутри функции вычисляется
+`q_length = torch.tensor(seq_len)` — **0-dim скалярный тензор**. Следующая строка:
+```python
+q_length, q_offset = q_length.shape[0], q_length[0].to(device)
+# shape[0] на 0-dim тензоре → IndexError: tuple index out of range
+```
+`torch.jit.trace` запускает Python-код буквально во время трейсинга — ошибка возникает
+до того, как граф успевает быть записан. Это баг совместимости в библиотеке `transformers`:
+ModernBERT не поддерживает экспорт в TorchScript.
+
+Попытки обхода:
+- `encoder.config._attn_implementation = "eager"` — `eager_mask` всё равно вызывает `sdpa_mask`
+- `attention_mask=None` в `EncoderWrapper.forward` — не помогает, маска вычисляется внутри всегда
+
+**Решение: ONNX Runtime backend** (нативный C++, без Python-интерпретатора).
+`torch.onnx.export` с `dynamo=True` использует AOT-компиляцию вместо трейсинга.
+ONNX Runtime — стандарт для продакшн-инференса трансформеров (HuggingFace Optimum).
+
+**Файлы:**
+- `triton-serve/export/export_onnx.py` — экспорт в ONNX (dynamo + fallback)
+- `triton-serve/model_repository/gliner_guard_encoder_onnx/config.pbtxt` — `backend: "onnxruntime"`
 
 **Условия теста:** планируется — Locust 100 users, 15 min
 
