@@ -255,19 +255,26 @@ gRPC ожидаемо быстрее на 10-15% за счёт бинарног�
 
 ## Финальные результаты (A100 80GB)
 
-Метод: Locust 100 users, 15 минут, via RunPod proxy — идентично LitServe baseline.
+Метод: Locust 100 users, 15 минут, via RunPod TCP proxy — идентично LitServe baseline.
 
 | Backend | Protocol | Workers | RPS | P50ms | P95ms | P99ms | Errors |
 |---|---|---|---|---|---|---|---|
 | LitServe (baseline) | REST | 4 | 185.3 | 500 | 1500 | 1700 | 0 |
-| Mock Triton (наш) | REST | 1 | **145.8** | 840 | 960 | 990 | 0 |
-| Real Triton (прогноз) | REST | 4 | ~582 | ~250 | ~400 | ~450 | 0 |
-| Real Triton (прогноз) | gRPC | 4 | ~640 | ~200 | ~350 | ~400 | 0 |
+| gliner_guard (Python) | REST | 4 | 146.8 | 600 | 1200 | 1900 | 0 |
+| gliner_guard (Python) | gRPC | 4 | 148.2 | 620 | 1000 | 1600 | 0 |
+| gliner_ensemble (ONNX) | REST | 1+1+1 | 79.9 | 1200 | 1300 | 1400 | 0 |
+| gliner_ensemble (ONNX) | gRPC | 1+1+1 | 78.9 | 1300 | 1300 | 1400 | 0 |
+| gliner_ensemble (ONNX) ×4 | REST | 4+1+4 | TODO | — | — | — | — |
+| gliner_ensemble (ONNX) ×4 | gRPC | 4+1+4 | TODO | — | — | — | — |
 
-Ключевой вывод: mock-triton с 1 воркером = 78% throughput LitServe с 4 воркерами.
-P95/P99 лучше у Triton (960/990ms vs 1500/1700ms) — dynamic batching сглаживает хвосты.
+Workers для ensemble: препроцессор + encoder_onnx + постпроцессор.
 
-Баг найденный и исправленный: `.to(torch.float16)` без `.to(device)` → модель оставалась на CPU (0.5 RPS → 145.8 RPS после фикса).
+Ключевые выводы:
+- gliner_guard REST ≈ gRPC по throughput (146 vs 148 RPS) — inference доминирует над транспортом
+- gRPC выигрывает на хвостах: P95 1000ms vs 1200ms, P99 1600ms vs 1900ms
+- ensemble count=1 даёт вдвое меньше RPS (80 vs 148) — bottleneck Python backend count=1
+- gRPC убирает экстремальные выбросы: ensemble max 1638ms (gRPC) vs 24948ms (REST)
+- Следующий шаг: ensemble count=4 (ожидаем ~140–160 RPS, P50 ~600ms)
 
 ---
 
@@ -279,5 +286,6 @@ P95/P99 лучше у Triton (960/990ms vs 1500/1700ms) — dynamic batching с�
 - [x] Фаза 3: REST benchmark на A100 → `mock_triton_server.py` (62.9 RPS GPU, 1 worker)
 - [x] Фаза 4: Docker Compose + Dockerfile + `runpod_setup.sh`
 - [x] Результаты сохранены → `triton-serve/results/a100-benchmark.csv`
-- [ ] Фаза 3 (финал): REST vs gRPC на реальном Triton — нужен RunPod A100 с доступом к nvcr.io
-- [ ] Фаза 5: итоговый Locust benchmark + таблица в README
+- [x] Фаза 3 (финал): REST + gRPC на реальном Triton — gliner_guard ✅, gliner_ensemble ✅
+- [x] Фаза 5: Locust benchmark — все 4 конфигурации прогнаны, результаты в a100-benchmark.csv
+- [ ] Эксперимент 4: ensemble count=4 для препроцессора и постпроцессора → ожидаем ~140–160 RPS

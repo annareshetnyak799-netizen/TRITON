@@ -55,8 +55,8 @@ CSV_DIR = os.getenv("CSV_DIR", _default_csv_dir)
 prompts = pd.read_csv(os.path.join(CSV_DIR, "prompts.csv"))
 responses = pd.read_csv(os.path.join(CSV_DIR, "responses.csv"))
 
-MODEL_NAME = "gliner_guard"
-REQUEST_NAME = "/v2/models/gliner_guard/infer"
+MODEL_NAME = os.getenv("MODEL_NAME", "gliner_guard")
+REQUEST_NAME = f"/v2/models/{MODEL_NAME}/infer"
 
 
 def _build_inputs(text: str) -> list:

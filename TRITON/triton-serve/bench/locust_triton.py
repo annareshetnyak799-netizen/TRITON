@@ -26,6 +26,7 @@ import json
 import os
 import random
 
+
 import pandas as pd
 from locust import FastHttpUser, task, constant_throughput
 
@@ -37,7 +38,8 @@ CSV_DIR = os.getenv("CSV_DIR", _default_csv_dir)
 prompts = pd.read_csv(os.path.join(CSV_DIR, "prompts.csv"))
 responses = pd.read_csv(os.path.join(CSV_DIR, "responses.csv"))
 
-TRITON_ENDPOINT = "/v2/models/gliner_guard/infer"
+_MODEL_NAME = os.getenv("MODEL_NAME", "gliner_guard")
+TRITON_ENDPOINT = f"/v2/models/{_MODEL_NAME}/infer"
 
 
 def _triton_payload(text: str) -> dict:

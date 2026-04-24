@@ -158,10 +158,64 @@ ONNX Runtime — стандарт для продакшн-инференса т�
 - `triton-serve/export/export_onnx.py` — экспорт в ONNX (dynamo + fallback)
 - `triton-serve/model_repository/gliner_guard_encoder_onnx/config.pbtxt` — `backend: "onnxruntime"`
 
-**Условия теста:** планируется — Locust 100 users, 15 min
+**Условия теста:** Locust 100 users, spawn_rate=10, constant_throughput(5), 15 min, RunPod A100 через TCP proxy (195.26.233.96)
 
-**Результаты:**
-> TODO: заполнить после деплоя и прогона
+### Результаты
+
+**REST (gliner_ensemble):**
+
+| Метрика | Ensemble REST | gliner_guard REST | Δ |
+|---|---|---|---|
+| RPS | **79.9** | 146.8 | -46% |
+| P50 | **1200ms** | 600ms | +100% |
+| P95 | **1300ms** | 1200ms | +8% |
+| P99 | **1400ms** | 1900ms | **-26% ✅** |
+| Max | 24948ms | 146074ms | **-83% ✅** |
+| Errors | **0** | 0 | = |
+
+**gRPC (gliner_ensemble):**
+
+| Метрика | Ensemble gRPC | Ensemble REST | Δ |
+|---|---|---|---|
+| RPS | **78.9** | 79.9 | -1% |
+| P50 | **1300ms** | 1200ms | +8% |
+| P95 | **1300ms** | 1300ms | = |
+| P99 | **1400ms** | 1400ms | = |
+| Max | **1638ms** | 24948ms | **-93% ✅** |
+| Errors | **0** | 0 | = |
+
+### Анализ: почему ensemble медленнее gliner_guard
+
+**Bottleneck — Python backend count=1 для preprocessor и postprocessor.**
+
+`gliner_guard` (Python backend, один монолитный Python-процесс) запускается с `count: 4` (start_runpod.sh делает `sed s/KIND_CPU/KIND_GPU/; s/count: 1/count: 4/`).
+Это 4 параллельных Python-процесса, каждый обрабатывает батч независимо.
+
+Ensemble же состоит из трёх отдельных моделей с `count: 1` каждая:
+- `gliner_preprocessor` — Python, CPU, count=1 → **последовательный bottleneck**
+- `gliner_guard_encoder_onnx` — ONNX Runtime, GPU → быстрый
+- `gliner_postprocessor` — Python, GPU, count=1 → **последовательный bottleneck**
+
+С 1 экземпляром постпроцессора все запросы выстраиваются в очередь.
+`~80 RPS ≈ 148 RPS / ~2` — как раз соответствует 2 Python-bottleneck вместо 4 параллельных воркеров.
+
+**REST vs gRPC для ensemble:** протокол не играет роли — bottleneck внутри Triton.
+Единственное преимущество gRPC: Max=1638ms против REST Max=24948ms — gRPC HTTP/2
+устраняет экстремальные выбросы (tail spikes от HTTP/1.1 head-of-line blocking).
+
+### Как улучшить ensemble
+
+Увеличить `count` для постпроцессора:
+```
+instance_group [{ kind: KIND_GPU, count: 2 }]  # postprocessor
+```
+Каждый экземпляр загружает GLiNER2 (~400MB GPU) → при count=4 потребуется ~1.6GB.
+Ожидаемый прирост: 80 RPS → ~160 RPS.
+
+**Файлы результатов:**
+- `triton-serve/results/locust-ensemble-rest_stats.csv`
+- `triton-serve/results/locust-ensemble-grpc_stats.csv`
+- `triton-serve/results/a100-benchmark.csv`
 
 ---
 
@@ -175,6 +229,13 @@ ONNX Runtime — стандарт для продакшн-инференса т�
 | `No module named 'requests'` | gliner2 импортирует requests | Добавить requests в Dockerfile |
 | 0.5 RPS вместо 145 RPS | `.to(torch.float16)` без `.to(device)` — модель оставалась на CPU | Исправить порядок: сначала to(device), потом to(dtype) |
 | Неправильный REST benchmark | concurrency=128 перегружало очередь batching | Использовать Locust вместо bench_rest.py для нагрузочного теста |
+| `sdpa_mask() got multiple values for argument 'batch_size'` | Патч ONNX-экспорта захватывал `q_length` позиционно, затем передавал его и позиционно и через kwargs | Изменить сигнатуру патча на `*args, **kwargs`, модифицировать только `kwargs['q_length']` |
+| `No module named 'onnx'` | `torch.onnx.export(dynamo=True)` требует пакет `onnx` отдельно от `onnxruntime-gpu` | Добавить `onnx` в Dockerfile |
+| `TYPE_BYTES` rejected by Triton | `data_type: TYPE_BYTES` не принимается Triton 25.01 protobuf-парсером в config.pbtxt | Использовать числовой код `data_type: 13` |
+| Ensemble routing bug | `value: "INPUT_TEXT"` в ensemble шаге не совпадал с именем входа `name: "text"` | Использовать точные имена тензоров: key=имя модели, value=имя в ensemble pipeline |
+| Entities всегда `{}` | `_FIXED_METADATA["entity_order"] = []` → `metadata.get("entity_order", default)` возвращает `[]`, цикл не выполняется | Удалить ключ `entity_order` из metadata — тогда `.get()` возвращает fallback `entity_names` |
+| `No module named 'packaging'` при рестарте | tritonserver запущен с `/usr/bin/python3` (системный, без pip-пакетов) вместо `/usr/local/bin/python3` | Явно передавать `--backend-config=python,python-runtime-path=/usr/local/bin/python3` |
+| Пустой body на `/v2/health/ready` | KFServing v2 spec: Triton возвращает HTTP 200 с пустым телом | `json.loads(body) if body else {}` |
 
 ---
 
