@@ -1,0 +1,50 @@
+# Triton Python Backend: GLiNER2 encoder (ModernBERT).
+#
+# Runs the encoder forward pass as a Python backend on GPU.
+# TorchScript export is not feasible: ModernBERT's create_bidirectional_mask
+# uses dynamic Python ops (q_length indexing) incompatible with torch.jit.trace.
+#
+# Part of gliner_ensemble:
+#   gliner_preprocessor → [this model] → gliner_postprocessor
+#
+# Input dtype matches preprocessor output:
+#   input_ids:       int64  [batch, seq_len]
+#   attention_mask:  float32 [batch, seq_len]
+
+name: "gliner_encoder_py"
+backend: "python"
+
+max_batch_size: 64
+
+dynamic_batching {
+  preferred_batch_size: [ 1, 8, 16, 32, 64 ]
+  max_queue_delay_microseconds: 50000
+}
+
+input [
+  {
+    name: "input_ids"
+    data_type: TYPE_INT64
+    dims: [ -1 ]
+  },
+  {
+    name: "attention_mask"
+    data_type: TYPE_FP32
+    dims: [ -1 ]
+  }
+]
+
+output [
+  {
+    name: "last_hidden_state"
+    data_type: TYPE_FP32
+    dims: [ -1, 384 ]
+  }
+]
+
+instance_group [
+  {
+    kind: KIND_GPU
+    count: 1
+  }
+]

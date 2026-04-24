@@ -33,9 +33,7 @@ echo "[start.sh] Model repository: $MODEL_REPO"
 # Switch configs to GPU mode
 sed -i 's/KIND_CPU/KIND_GPU/g'  "$MODEL_REPO/gliner_guard/config.pbtxt"
 sed -i 's/count: 1/count: 4/g' "$MODEL_REPO/gliner_guard/config.pbtxt"
-# Encoder (PyTorch backend): must run on GPU for libtorch to load model.pt onto CUDA
-sed -i 's/KIND_CPU/KIND_GPU/g'  "$MODEL_REPO/gliner_guard_encoder/config.pbtxt"
-echo "[start.sh] Configs switched to GPU (gliner_guard: count=4, gliner_guard_encoder: count=1)"
+echo "[start.sh] Configs switched to GPU (gliner_guard: count=4)"
 
 # Используем тот же Python, что использовал pip во время сборки образа.
 # sys.executable возвращает абсолютный путь к текущему интерпретатору — без угадывания.
@@ -55,26 +53,15 @@ python3 -c "import torch; print('torch', torch.__version__, 'at', torch.__file__
 python3 -c "from gliner2 import GLiNER2; print('gliner2 ok')" \
     || { echo "FATAL: gliner2 not importable"; exit 1; }
 
-# Generate TorchScript encoder (model.pt) if not already present.
-# export_torchscript.py downloads model from HuggingFace Hub (cached after first run).
-ENCODER_PT="$MODEL_REPO/gliner_guard_encoder/1/model.pt"
-if [ ! -f "$ENCODER_PT" ]; then
-    echo "[start.sh] Generating TorchScript encoder (first run, ~2 min)..."
-    python3 "$REPO_DIR/TRITON/triton-serve/export/export_torchscript.py"
-    echo "[start.sh] Encoder saved to $ENCODER_PT"
-else
-    echo "[start.sh] Encoder model.pt already exists, skipping export."
-fi
-
 # Start Triton: gliner_guard (Python backend, full pipeline)
-#              + gliner_ensemble (PyTorch encoder + Python pre/postprocessor)
+#              + gliner_ensemble (Python pre/encoder/postprocessor)
 echo "[start.sh] Starting tritonserver..."
 tritonserver \
     --model-repository="$MODEL_REPO" \
     --model-control-mode=explicit \
     --load-model=gliner_guard \
     --load-model=gliner_preprocessor \
-    --load-model=gliner_guard_encoder \
+    --load-model=gliner_encoder_py \
     --load-model=gliner_postprocessor \
     --load-model=gliner_ensemble \
     --backend-config=python,python-runtime-path="$PYTHON_RUNTIME" \
