@@ -54,10 +54,12 @@ def _patch_sdpa_mask() -> bool:
         import transformers.masking_utils as _mu
         _orig = _mu.sdpa_mask
 
-        def _patched(q_length, *args, **kwargs):
-            if isinstance(q_length, torch.Tensor) and q_length.ndim == 0:
-                q_length = q_length.unsqueeze(0)
-            return _orig(q_length, *args, **kwargs)
+        def _patched(*args, **kwargs):
+            if 'q_length' in kwargs:
+                q = kwargs['q_length']
+                if isinstance(q, torch.Tensor) and q.ndim == 0:
+                    kwargs['q_length'] = q.unsqueeze(0)
+            return _orig(*args, **kwargs)
 
         _mu.sdpa_mask = _patched
         return True
