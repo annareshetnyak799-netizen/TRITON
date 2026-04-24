@@ -41,6 +41,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     scipy \
     "pydantic>=2.0.0" \
     "tritonclient[all]" \
+    onnx \
     onnxruntime-gpu
 
 # gliner/gliner2 — без зависимостей (все deps выше)

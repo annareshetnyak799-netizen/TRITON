@@ -58,7 +58,10 @@ python3 -c "from gliner2 import GLiNER2; print('gliner2 ok')" \
 ENCODER_ONNX="$MODEL_REPO/gliner_guard_encoder_onnx/1/model.onnx"
 if [ ! -f "$ENCODER_ONNX" ]; then
     echo "[start.sh] Exporting encoder to ONNX (first run, ~2 min)..."
-    python3 "$REPO_DIR/TRITON/triton-serve/export/export_onnx.py"
+    python3 "$REPO_DIR/TRITON/triton-serve/export/export_onnx.py" \
+        || { echo "FATAL: ONNX export failed — model.onnx not created"; exit 1; }
+    [ -f "$ENCODER_ONNX" ] \
+        || { echo "FATAL: export_onnx.py exited 0 but $ENCODER_ONNX still missing"; exit 1; }
     echo "[start.sh] ONNX encoder saved to $ENCODER_ONNX"
 else
     echo "[start.sh] ONNX encoder already exists, skipping export."
