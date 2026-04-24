@@ -53,15 +53,26 @@ python3 -c "import torch; print('torch', torch.__version__, 'at', torch.__file__
 python3 -c "from gliner2 import GLiNER2; print('gliner2 ok')" \
     || { echo "FATAL: gliner2 not importable"; exit 1; }
 
+# Export encoder to ONNX if not already present.
+# Uses dynamo=True (AOT compilation) — avoids ModernBERT tracing issues.
+ENCODER_ONNX="$MODEL_REPO/gliner_guard_encoder_onnx/1/model.onnx"
+if [ ! -f "$ENCODER_ONNX" ]; then
+    echo "[start.sh] Exporting encoder to ONNX (first run, ~2 min)..."
+    python3 "$REPO_DIR/TRITON/triton-serve/export/export_onnx.py"
+    echo "[start.sh] ONNX encoder saved to $ENCODER_ONNX"
+else
+    echo "[start.sh] ONNX encoder already exists, skipping export."
+fi
+
 # Start Triton: gliner_guard (Python backend, full pipeline)
-#              + gliner_ensemble (Python pre/encoder/postprocessor)
+#              + gliner_ensemble (ONNX encoder + Python pre/postprocessor)
 echo "[start.sh] Starting tritonserver..."
 tritonserver \
     --model-repository="$MODEL_REPO" \
     --model-control-mode=explicit \
     --load-model=gliner_guard \
     --load-model=gliner_preprocessor \
-    --load-model=gliner_encoder_py \
+    --load-model=gliner_guard_encoder_onnx \
     --load-model=gliner_postprocessor \
     --load-model=gliner_ensemble \
     --backend-config=python,python-runtime-path="$PYTHON_RUNTIME" \

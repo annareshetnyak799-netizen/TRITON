@@ -1,12 +1,11 @@
-# Ensemble: gliner_preprocessor → gliner_encoder_py → gliner_postprocessor
+# Ensemble: gliner_preprocessor → gliner_guard_encoder_onnx → gliner_postprocessor
 #
 # Data flow:
-#   text ──► [preprocessor] ──► input_ids, attention_mask ──► [encoder_py] ──► last_hidden_state ──► [postprocessor] ──► result
-#                          ╰──► text_word_indices, meta ───────────────────────────────────────────► [postprocessor]
+#   text ──► [preprocessor] ──► input_ids, attention_mask ──► [encoder_onnx] ──► last_hidden_state ──► [postprocessor] ──► result
+#                          ╰──► text_word_indices, meta ────────────────────────────────────────────► [postprocessor]
 #
-# Encoder runs as Python backend on GPU (ModernBERT is incompatible with
-# torch.jit.trace due to dynamic ops in create_bidirectional_mask).
-# Pre/postprocessing also run as Python backends.
+# Encoder: ONNX Runtime backend (native C++ inference, no Python overhead).
+# Pre/postprocessing: Python backends.
 
 name: "gliner_ensemble"
 platform: "ensemble"
@@ -41,7 +40,7 @@ ensemble_scheduling {
       output_map { key: "meta"               value: "PREP_META" }
     },
     {
-      model_name: "gliner_encoder_py"
+      model_name: "gliner_guard_encoder_onnx"
       model_version: -1
       input_map  { key: "input_ids"          value: "PREP_INPUT_IDS" }
       input_map  { key: "attention_mask"     value: "PREP_ATTN_MASK" }
