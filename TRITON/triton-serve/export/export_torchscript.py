@@ -79,6 +79,13 @@ def export(verify: bool = False) -> Path:
     hidden_size = encoder.config.hidden_size
     print(f"  Encoder: {encoder.__class__.__name__}  hidden={hidden_size}")
 
+    # ModernBERT's SDPA/Flash attention uses dynamic Python ops in masking_utils.py
+    # that are incompatible with torch.jit.trace (fail at runtime during tracing).
+    # Force "eager" attention so the tracer sees only simple matmul-based attention.
+    if hasattr(encoder, 'config'):
+        encoder.config._attn_implementation = "eager"
+        print(f"  Attention impl forced to: eager (for TorchScript compatibility)")
+
     wrapper = EncoderWrapper(encoder).eval()
 
     # ── Dummy inputs for tracing ──────────────────────────────────────────────
@@ -93,7 +100,7 @@ def export(verify: bool = False) -> Path:
         traced = torch.jit.trace(
             wrapper,
             (dummy_input_ids, dummy_attention_mask),
-            strict=False,   # DeBERTa uses dict outputs — strict=False needed
+            strict=False,   # ModernBERT uses dict outputs — strict=False needed
         )
 
     # ── Verify trace outputs match original ──────────────────────────────────
