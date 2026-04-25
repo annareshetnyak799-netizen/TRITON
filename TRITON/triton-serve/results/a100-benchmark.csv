@@ -9,3 +9,8 @@ triton-python,REST,4,146.8,600,1200,1900,0,Locust 100 users 15min A100 local Mac
 triton-python,gRPC,4,148.2,620,1000,1600,0,Locust 100 users 15min A100 local Mac client (repeat)
 triton-ensemble,REST,1,79.9,1200,1300,1400,0,Locust 100 users 15min A100 ONNX ensemble (preprocessor+encoder_onnx+postprocessor count=1 each)
 triton-ensemble,gRPC,1,78.9,1300,1300,1400,0,Locust 100 users 15min A100 ONNX ensemble (preprocessor+encoder_onnx+postprocessor count=1 each)
+triton-ensemble,REST,4+1+4,86.0,1200,1200,1500,0,Locust 100 users 15min A100 ONNX ensemble (pre=4 enc=1 post=4) bottleneck=encoder
+triton-ensemble,REST,4+2+4,124.2,790,1000,1300,1,Locust 100 users 15min A100 ONNX ensemble (pre=4 enc=2 post=4) encoder bottleneck reduced
+triton-ensemble,REST,4+4+4,134.6,700,1100,1500,0,Locust 100 users 15min A100 ONNX ensemble (pre=4 enc=4 post=4) diminishing returns
+triton-ensemble,gRPC,4+4+4,INVALID,INVALID,INVALID,INVALID,0,gevent threadpool crash on client after multiple sequential runs — not a valid measurement
+triton-ensemble,gRPC,4+1+4,85.8,1200,1300,1400,0,Locust 100 users 15min A100 ONNX ensemble (pre=4 enc=1 post=4) bottleneck=encoder

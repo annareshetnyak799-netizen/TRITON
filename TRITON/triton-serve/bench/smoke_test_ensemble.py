@@ -21,7 +21,8 @@ def get(host: str, path: str) -> dict:
     url = f"http://{host}{path}"
     try:
         with urllib.request.urlopen(url, timeout=10) as r:
-            return json.loads(r.read())
+            body = r.read()
+            return json.loads(body) if body else {}
     except urllib.error.HTTPError as e:
         return {"error": e.code, "reason": e.reason}
     except Exception as e:

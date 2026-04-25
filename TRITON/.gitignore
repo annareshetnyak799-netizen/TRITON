@@ -29,3 +29,10 @@ hf_cache/
 # Local reports
 RESULT.md
 MEMORY.md
+CLAUDE.md
+
+# Personal notes — not for public repo
+anna-notes.md
+CLAUDE.md
+.DS_Store
+RESULT.md
