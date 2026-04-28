@@ -21,6 +21,10 @@ dynamic_batching {
   max_queue_delay_microseconds: 50000
 }
 
+optimization {
+  graph { level: 3 }
+}
+
 input [
   {
     name: "input_ids"
