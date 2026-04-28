@@ -92,7 +92,7 @@ class TritonPythonModel:
                 batch = self.collator(dataset)
 
                 input_ids_np = batch.input_ids.numpy().astype(np.int64)       # [N, seq_len]
-                attn_mask_np = batch.attention_mask.numpy().astype(np.float16) # [N, seq_len]
+                attn_mask_np = batch.attention_mask.numpy().astype(np.float32) # [N, seq_len]
 
                 if batch.text_word_indices is not None:
                     twi_np = batch.text_word_indices.numpy().astype(np.int64)  # [N, max_words]

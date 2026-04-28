@@ -88,11 +88,11 @@ def export(verify: bool = False) -> Path:
     patched = _patch_sdpa_mask()
     print(f"  sdpa_mask patch: {'ok' if patched else 'skipped'}")
 
-    wrapper = EncoderWrapper(encoder).half().eval()  # fp16
+    wrapper = EncoderWrapper(encoder).eval()  # fp32 (fp16 causes ONNX Runtime queue stall)
 
     batch, seq_len = 2, 64
     dummy_ids  = torch.randint(0, 1000, (batch, seq_len), dtype=torch.int64)
-    dummy_mask = torch.ones(batch, seq_len, dtype=torch.float16)  # fp16
+    dummy_mask = torch.ones(batch, seq_len, dtype=torch.float32)  # fp32
 
     OUT.mkdir(parents=True, exist_ok=True)
     out_path = OUT / "model.onnx"
