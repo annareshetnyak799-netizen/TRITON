@@ -14,3 +14,6 @@ triton-ensemble,REST,4+2+4,124.2,790,1000,1300,1,Locust 100 users 15min A100 ONN
 triton-ensemble,REST,4+4+4,134.6,700,1100,1500,0,Locust 100 users 15min A100 ONNX ensemble (pre=4 enc=4 post=4) diminishing returns
 triton-ensemble,gRPC,4+4+4,INVALID,INVALID,INVALID,INVALID,0,gevent threadpool crash on client after multiple sequential runs — not a valid measurement
 triton-ensemble,gRPC,4+1+4,85.8,1200,1300,1400,0,Locust 100 users 15min A100 ONNX ensemble (pre=4 enc=1 post=4) bottleneck=encoder
+triton-python-fp16,REST,4,152.2,590,1000,1600,0,Locust 100 users 15min A100 fp16 gliner_guard Python backend (was already fp16 via torch.float16)
+triton-ensemble-fp16,REST,4+4+4,INVALID,INVALID,INVALID,INVALID,0,INVALID — ONNX Runtime fp16 queue stall: 8.7s avg queue per request (79B us total for 9093 exec). ONNX Runtime does not support fp16 stably for ModernBERT. Reverted to fp32.
+triton-python-fp16,gRPC,4,137.7,660,1200,1700,0,Locust 100 users 15min A100 fp16 gliner_guard Python backend gRPC — Channel closed errors post-shutdown only (0 failures during test)
